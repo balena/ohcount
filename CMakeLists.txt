@@ -4,19 +4,19 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 
 # Find bash executable
-FIND_FILE(BASH_EXECUTABLE bash${CMAKE_EXECUTABLE_SUFFIX})
+FIND_PROGRAM(BASH_EXECUTABLE bash)
 IF(NOT BASH_EXECUTABLE)
   MESSAGE(SEND_ERROR "Bash executable not found, you need it in order to build ohcount")
 ENDIF(NOT BASH_EXECUTABLE)
 
 # Find gperf executable
-FIND_FILE(GPERF_EXECUTABLE gperf${CMAKE_EXECUTABLE_SUFFIX})
+FIND_PROGRAM(GPERF_EXECUTABLE gperf)
 IF(NOT GPERF_EXECUTABLE)
   MESSAGE(SEND_ERROR "GNU gperf executable not found, you need it in order to build ohcount")
 ENDIF(NOT GPERF_EXECUTABLE)
 
 # Find Ragel executable
-FIND_FILE(RAGEL_EXECUTABLE ragel${CMAKE_EXECUTABLE_SUFFIX})
+FIND_PROGRAM(RAGEL_EXECUTABLE ragel)
 IF(NOT RAGEL_EXECUTABLE)
   MESSAGE(SEND_ERROR "Ragel executable not found, you need it in order to build ohcount")
 ENDIF(NOT RAGEL_EXECUTABLE)
@@ -38,6 +38,7 @@ ENDFOREACH(_hsrc)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${_hash_header_headers}
+         ${CMAKE_SOURCE_DIR}/src/hash/language_hash.c
   COMMAND ${BASH_EXECUTABLE} ./generate_headers
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src/hash
   DEPENDS ${_hash_header_srcs}
@@ -100,27 +101,13 @@ SET(ENABLE_RUBY TRUE CACHE BOOLEAN "Enable ruby binding")
 IF(ENABLE_RUBY)
 
   # Find Ruby executable
-  FIND_FILE(RUBY_EXECUTABLE ruby${CMAKE_EXECUTABLE_SUFFIX})
-  IF(NOT RUBY_EXECUTABLE)
-    MESSAGE(SEND_ERROR "You need Ruby in order to compile ohcount Ruby binding")
-  ENDIF(NOT RUBY_EXECUTABLE)
+  FIND_PACKAGE(Ruby REQUIRED)
 
   # Find SWIG executable
-  FIND_FILE(SWIG_EXECUTABLE swig${CMAKE_EXECUTABLE_SUFFIX})
-  IF(NOT SWIG_EXECUTABLE)
-    MESSAGE(SEND_ERROR "You need SWIG in order to compile ohcount Ruby binding")
-  ENDIF(NOT SWIG_EXECUTABLE)
+  FIND_PACKAGE(SWIG REQUIRED)
 
-  IF(SWIG_EXECUTABLE AND RUBY_EXECUTABLE)
-    EXECUTE_PROCESS(
-      COMMAND ${BASH_EXECUTABLE} ${CMAKE_SOURCE_DIR}/ruby/print_arch
-      OUTPUT_VARIABLE arch
-    )
-    EXECUTE_PROCESS(
-      COMMAND "${RUBY_EXECUTABLE} -rmkmf -e 'print Config::expand(CONFIG["archdir"])'"
-      OUTPUT_VARIABLE RUBY_INCLUDE_DIR
-    )
-    FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${arch})
+  IF(RUBY_FOUND AND SWIG_FOUND)
+    FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${RUBY_ARCH})
 
     ADD_CUSTOM_COMMAND(
       OUTPUT ${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c
@@ -128,16 +115,17 @@ IF(ENABLE_RUBY)
       DEPENDS ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
     )
 
+    INCLUDE_DIRECTORIES(${RUBY_INCLUDE_DIRS})
     ADD_LIBRARY(ohcount_ruby SHARED ${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c)
     ADD_DEPENDENCIES(ohcount_ruby libohcount)
-    TARGET_LINK_LIBRARIES(ohcount_ruby libohcount)
+    TARGET_LINK_LIBRARIES(ohcount_ruby libohcount ${RUBY_LIBRARY})
     SET_TARGET_PROPERTIES(ohcount_ruby
       PROPERTIES
         OUTPUT_NAME ohcount
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${arch}
     )
 
-  ENDIF(SWIG_EXECUTABLE AND RUBY_EXECUTABLE)
+  ENDIF(RUBY_FOUND AND SWIG_FOUND)
 
 ENDIF(ENABLE_RUBY)
 
