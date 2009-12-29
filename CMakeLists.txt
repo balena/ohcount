@@ -1,7 +1,7 @@
 # CMake script for Ohcount.
 # Written by Guilherme Balena Versiani. guibv<att>comunip.com.br.
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 # Find bash executable
 FIND_PROGRAM(BASH_EXECUTABLE bash)
@@ -33,7 +33,7 @@ FILE(GLOB _hash_header_srcs "${CMAKE_SOURCE_DIR}/src/hash/*.gperf")
 UNSET(_hash_header_headers)
 FOREACH(_hsrc ${_hash_header_srcs})
   STRING(REPLACE "s.gperf" "_hash.h" _hh ${_hsrc})
-  SET(_hash_header_headers ${_hh})
+  LIST(APPEND _hash_header_headers ${_hh})
 ENDFOREACH(_hsrc)
 
 ADD_CUSTOM_COMMAND(
@@ -58,7 +58,7 @@ UNSET(_parser_headers)
 FOREACH(_parser ${_parser_srcs})
   GET_FILENAME_COMPONENT(_path ${_parser} PATH)
   GET_FILENAME_COMPONENT(_name ${_parser} NAME_WE)
-  SET(_parser_headers ${_path}/${_name}.h)
+  LIST(APPEND _parser_headers ${_path}/${_name}.h)
 ENDFOREACH(_parser)
 
 ADD_CUSTOM_COMMAND(
@@ -100,32 +100,38 @@ TARGET_LINK_LIBRARIES(ohcount libohcount)
 SET(ENABLE_RUBY TRUE CACHE BOOLEAN "Enable ruby binding")
 IF(ENABLE_RUBY)
 
+  MESSAGE(STATUS "Enabled Ruby binding")
+
   # Find Ruby executable
   FIND_PACKAGE(Ruby REQUIRED)
+  IF(NOT RUBY_FOUND)
+    MESSAGE(SEND_ERROR "You need Ruby to build Ruby binding")
+  ENDIF(NOT RUBY_FOUND)
 
   # Find SWIG executable
   FIND_PACKAGE(SWIG REQUIRED)
+  IF(NOT SWIG_FOUND)
+    MESSAGE(SEND_ERROR "You need SWIG to build Ruby binding")
+  ENDIF(NOT SWIG_FOUND)
 
-  IF(RUBY_FOUND AND SWIG_FOUND)
-    FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${RUBY_ARCH})
+  FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${RUBY_ARCH})
 
-    ADD_CUSTOM_COMMAND(
-      OUTPUT ${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c
-      COMMAND ${SWIG_EXECUTABLE} -ruby -o ${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
-      DEPENDS ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
-    )
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c
+    COMMAND ${SWIG_EXECUTABLE} -ruby -o ${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
+    DEPENDS ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
+  )
 
-    INCLUDE_DIRECTORIES(${RUBY_INCLUDE_DIRS})
-    ADD_LIBRARY(ohcount_ruby SHARED ${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c)
-    ADD_DEPENDENCIES(ohcount_ruby libohcount)
-    TARGET_LINK_LIBRARIES(ohcount_ruby libohcount ${RUBY_LIBRARY})
-    SET_TARGET_PROPERTIES(ohcount_ruby
-      PROPERTIES
-        OUTPUT_NAME ohcount
-        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${arch}
-    )
-
-  ENDIF(RUBY_FOUND AND SWIG_FOUND)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/ruby ${RUBY_INCLUDE_DIRS})
+  ADD_LIBRARY(ohcount_ruby SHARED ${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c)
+  ADD_DEPENDENCIES(ohcount_ruby libohcount)
+  TARGET_LINK_LIBRARIES(ohcount_ruby libohcount ${RUBY_LIBRARY})
+  SET_TARGET_PROPERTIES(ohcount_ruby
+    PROPERTIES
+      OUTPUT_NAME ohcount
+      PREFIX ""
+      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${arch}
+  )
 
 ENDIF(ENABLE_RUBY)
 
