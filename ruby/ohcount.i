@@ -54,6 +54,30 @@
 %include "../src/structs.h"
 %mutable;
 
+%extend Loc {
+  int total() {
+    return ohcount_loc_total(self);
+  }
+}
+
+%extend LocList {
+  int code() {
+    return ohcount_loc_list_code(self);
+  }
+  int comments() {
+    return ohcount_loc_list_comments(self);
+  }
+  int blanks() {
+    return ohcount_loc_list_blanks(self);
+  }
+  int total() {
+    ohcount_loc_list_total(self);
+  }
+  int filecount() {
+    ohcount_loc_list_filecount(self);
+  }
+}
+
 %extend SourceFile {
   void set_diskpath(const char *diskpath) {
     ohcount_sourcefile_set_diskpath(self, diskpath);
@@ -111,13 +135,13 @@
     }
     return sourcefile;
   }
-#elif defined(SWIGRUBY)
+#elif defined(SWIGPYTHON)
   void set_filenames(PyObject *filenames) {
     int i, length;
     char **fnames;
     if (!PyList_Check(filenames)) {
       PyErr_SetString(PyExc_SyntaxError, "Invalid parameter, expected a list of strings");
-      return NULL;
+      return;
     }
     length = PyList_Size(filenames);
     fnames = calloc(length + 1, sizeof(char *));
@@ -125,12 +149,36 @@
       PyObject *s = PyList_GetItem(filenames, i);
       if (!PyString_Check(s)) {
         PyErr_SetString(PyExc_SyntaxError, "Invalid parameter, expected a list of strings");
-        return NULL;
+        return;
       }
       fnames[i] = PyString_AsString(s);
     }
     ohcount_sourcefile_set_filenames(self, fnames);
     free(fnames);
+  }
+  static void py_annotate_callback(const char *language, const char *entity,
+                  int start, int end, void *userdata) {
+    PyObject *list = (PyObject *) userdata;
+    PyObject *dict = PyDict_New();
+    PyDict_SetItem(dict, PyString_FromString("language"),
+        PyString_FromString(language));
+    PyDict_SetItem(dict, PyString_FromString("entity"),
+        PyString_FromString(entity));
+    PyDict_SetItem(dict, PyString_FromString("start"),
+        PyInt_FromLong(start));
+    PyDict_SetItem(dict, PyString_FromString("end"),
+        PyInt_FromLong(end));
+    PyList_Append(list, dict);
+  }
+  PyObject *annotate() {
+    PyObject *list = PyList_New(0);
+    ohcount_sourcefile_parse_with_callback(self, SourceFile_py_annotate_callback, list);
+    return list;
+  }
+  PyObject *raw_entities() {
+    PyObject *list = PyList_New(0);
+    ohcount_sourcefile_parse_entities_with_callback(self, SourceFile_py_annotate_callback, list);
+    return list;
   }
   SourceFile(const char *filepath, PyObject *args) {
     SourceFile *sourcefile = ohcount_sourcefile_new(filepath);
@@ -138,16 +186,16 @@
       PyObject *val;
       if (!PyDict_Check(args)) {
         PyErr_SetString(PyExc_SyntaxError, "Invalid argument");
-        ohcount_sourcefile_list_free(list);
+        ohcount_sourcefile_free(sourcefile);
         return NULL;
       }
-      val = PyDict_GetItem(args, PyString_FromString("contents"))
+      val = PyDict_GetItem(args, PyString_FromString("contents"));
       if (val && PyString_Check(val))
         ohcount_sourcefile_set_contents(sourcefile, PyString_AsString(val));
-      val = PyDict_GetItem(args, PyString_FromString("file_location"))
+      val = PyDict_GetItem(args, PyString_FromString("file_location"));
       if (val && PyString_Check(val))
         ohcount_sourcefile_set_diskpath(sourcefile, PyString_AsString(val));
-      val = PyDict_GetItem(args, PyString_FromString("filenames"))
+      val = PyDict_GetItem(args, PyString_FromString("filenames"));
       if (val && PyString_Check(val))
         SourceFile_set_filenames(sourcefile, val);
     }
@@ -168,6 +216,11 @@
       ohcount_sourcefile_list_add_directory(list, STR2CSTR(directory));
     return Qnil;
   }
+  static VALUE rb_add_file(VALUE file, SourceFileList *list) {
+    if (file && rb_type(file) == T_STRING)
+      ohcount_sourcefile_list_add_file(list, STR2CSTR(file));
+    return Qnil;
+  }
   SourceFileList(VALUE opt_hash=NULL) {
     SourceFileList *list = ohcount_sourcefile_list_new();
     if (opt_hash) {
@@ -175,6 +228,9 @@
       val = rb_hash_aref(opt_hash, ID2SYM(rb_intern("paths")));
       if (val && rb_type(val) == T_ARRAY)
         rb_iterate(rb_each, val, SourceFileList_rb_add_directory, (VALUE)list);
+      val = rb_hash_aref(opt_hash, ID2SYM(rb_intern("files")));
+      if (val && rb_type(val) == T_ARRAY)
+        rb_iterate(rb_each, val, SourceFileList_rb_add_file, (VALUE)list);
     }
     return list;
   }
@@ -201,6 +257,19 @@
             return NULL;
           }
           ohcount_sourcefile_list_add_directory(list, PyString_AsString(s));
+        }
+      }
+      val = PyDict_GetItem(args, PyString_FromString("files"));
+      if (val && PyList_Check(val)) {
+        int i, length = PyList_Size(val);
+        for (i = 0; i < length; i++) {
+          PyObject *s = PyList_GetItem(val, i);
+          if (!PyString_Check(s)) {
+            PyErr_SetString(PyExc_SyntaxError, "Invalid 'files', expected a list of strings");
+            ohcount_sourcefile_list_free(list);
+            return NULL;
+          }
+          ohcount_sourcefile_list_add_file(list, PyString_AsString(s));
         }
       }
     }
