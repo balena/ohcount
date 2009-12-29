@@ -63,49 +63,50 @@ ENDMACRO(ADD_TARGET_TEST _testname _target _workingdir _expected_result)
 
 # Gperf input files:
 FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/hash)
-FILE(GLOB _hash_header_srcs "src/hash/*.gperf")
-FOREACH(_hsrc ${_hash_header_srcs})
+FILE(GLOB _gperf_files "src/hash/*.gperf")
+FOREACH(_hsrc ${_gperf_files})
   GET_FILENAME_COMPONENT(_hsrc ${_hsrc} NAME)
-  STRING(REPLACE "s.gperf" "_hash.h" _hh ${_hsrc})
-  LIST(APPEND _hash_header_headers ${CMAKE_BINARY_DIR}/hash/${_hh})
+  IF(_hsrc STREQUAL "languages.gperf")
+    STRING(REPLACE "s.gperf" "_hash.c" _hh ${_hsrc})
+  ELSE(_hsrc STREQUAL "languages.gperf")
+    STRING(REPLACE "s.gperf" "_hash.h" _hh ${_hsrc})
+  ENDIF(_hsrc STREQUAL "languages.gperf")
+  LIST(APPEND _gperf_srcs ${CMAKE_BINARY_DIR}/hash/${_hh})
 ENDFOREACH(_hsrc)
 ADD_CUSTOM_COMMAND(
-  OUTPUT ${_hash_header_headers} ${CMAKE_BINARY_DIR}/hash/language_hash.c
+  OUTPUT ${_gperf_srcs} ${CMAKE_BINARY_DIR}/hash/language_hash.c
   COMMAND cp ${CMAKE_SOURCE_DIR}/src/hash/* ${CMAKE_BINARY_DIR}/hash
   COMMAND ${BASH_EXECUTABLE} ./generate_headers
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/hash
-  DEPENDS ${_hash_header_srcs} ${CMAKE_SOURCE_DIR}/src/hash/generate_headers
+  DEPENDS ${_gperf_files} ${CMAKE_SOURCE_DIR}/src/hash/generate_headers
 )
 ADD_CUSTOM_TARGET(ohcount_gperf_files
-  DEPENDS ${_hash_header_headers} ${CMAKE_BINARY_DIR}/hash/language_hash.c
-  SOURCES ${_hash_header_srcs} ${CMAKE_SOURCE_DIR}/src/hash/generate_headers
+  DEPENDS ${_gperf_srcs} ${CMAKE_BINARY_DIR}/hash/language_hash.c
+  SOURCES ${_gperf_files} ${CMAKE_SOURCE_DIR}/src/hash/generate_headers
 )
 LIST(APPEND _additional_clean_files ${CMAKE_BINARY_DIR}/hash/*)
-SET_SOURCE_FILES_PROPERTIES(
-  "${_hash_header_headers} ${CMAKE_BINARY_DIR}/hash/language_hash.c"
-  PROPERTIES GENERATED TRUE
-)
+SET_SOURCE_FILES_PROPERTIES(${_gperf_srcs} PROPERTIES GENERATED TRUE)
 
 # Ragel input files:
 FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/parsers)
-FILE(GLOB _parser_srcs "src/parsers/*.rl")
-FOREACH(_parser ${_parser_srcs})
+FILE(GLOB _ragel_files "src/parsers/*.rl")
+FOREACH(_parser ${_ragel_files})
   GET_FILENAME_COMPONENT(_name ${_parser} NAME_WE)
-  LIST(APPEND _parser_headers ${CMAKE_BINARY_DIR}/parsers/${_name}.h)
+  LIST(APPEND _ragel_srcs ${CMAKE_BINARY_DIR}/parsers/${_name}.h)
 ENDFOREACH(_parser)
 ADD_CUSTOM_COMMAND(
-  OUTPUT ${_parser_headers}
+  OUTPUT ${_ragel_srcs}
   COMMAND cp ${CMAKE_SOURCE_DIR}/src/parsers/* ${CMAKE_BINARY_DIR}/parsers
   COMMAND ${BASH_EXECUTABLE} ./compile
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/parsers
-  DEPENDS ${_parser_srcs} ${CMAKE_SOURCE_DIR}/src/parsers/compile
+  DEPENDS ${_ragel_files} ${CMAKE_SOURCE_DIR}/src/parsers/compile
 )
 ADD_CUSTOM_TARGET(ohcount_ragel_files
-  DEPENDS ${_parser_headers}
-  SOURCES ${_parser_srcs} ${CMAKE_SOURCE_DIR}/src/parsers/compile
+  DEPENDS ${_ragel_srcs}
+  SOURCES ${_ragel_files} ${CMAKE_SOURCE_DIR}/src/parsers/compile
 )
 LIST(APPEND _additional_clean_files ${CMAKE_BINARY_DIR}/parsers/*)
-SET_SOURCE_FILES_PROPERTIES(${_parser_headers} PROPERTIES GENERATED TRUE)
+SET_SOURCE_FILES_PROPERTIES(${_ragel_srcs} PROPERTIES GENERATED TRUE)
 
 # Ohcount static library
 INCLUDE_DIRECTORIES(
@@ -114,6 +115,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_BINARY_DIR}
 )
 ADD_LIBRARY(libohcount STATIC
+  ${_gperf_srcs}
+  ${_ragel_srcs}
   src/sourcefile.c
   src/detector.c
   src/licenses.c
@@ -122,7 +125,6 @@ ADD_LIBRARY(libohcount STATIC
   src/log.c
   src/diff.c
   src/parsed_language.c
-  ${CMAKE_BINARY_DIR}/hash/language_hash.c
 )
 ADD_DEPENDENCIES(libohcount ohcount_gperf_files ohcount_ragel_files)
 SET_TARGET_PROPERTIES(libohcount PROPERTIES OUTPUT_NAME ohcount)
