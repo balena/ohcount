@@ -132,17 +132,22 @@
     ohcount_sourcefile_set_filenames(self, fnames);
     free(fnames);
   }
-  SourceFile(const char *filepath, PyObject *args, PyObject *kwargs) {
+  SourceFile(const char *filepath, PyObject *args) {
     SourceFile *sourcefile = ohcount_sourcefile_new(filepath);
-    if (kwargs) {
+    if (args) {
       PyObject *val;
-      val = PyDict_GetItem(kwargs, PyString_FromString("contents"))
+      if (!PyDict_Check(args)) {
+        PyErr_SetString(PyExc_SyntaxError, "Invalid argument");
+        ohcount_sourcefile_list_free(list);
+        return NULL;
+      }
+      val = PyDict_GetItem(args, PyString_FromString("contents"))
       if (val && PyString_Check(val))
         ohcount_sourcefile_set_contents(sourcefile, PyString_AsString(val));
-      val = PyDict_GetItem(kwargs, PyString_FromString("file_location"))
+      val = PyDict_GetItem(args, PyString_FromString("file_location"))
       if (val && PyString_Check(val))
         ohcount_sourcefile_set_diskpath(sourcefile, PyString_AsString(val));
-      val = PyDict_GetItem(kwargs, PyString_FromString("filenames"))
+      val = PyDict_GetItem(args, PyString_FromString("filenames"))
       if (val && PyString_Check(val))
         SourceFile_set_filenames(sourcefile, val);
     }
@@ -176,11 +181,16 @@
 
 #elif defined(SWIGPYTHON)
 
-  SourceFileList(PyObject *args, PyObject *kwargs) {
+  SourceFileList(PyObject *args) {
     SourceFileList *list = ohcount_sourcefile_list_new();
-    if (kwargs) {
+    if (args) {
       PyObject *val;
-      val = PyDict_GetItem(kwargs, PyString_FromString("paths"));
+      if (!PyDict_Check(args)) {
+        PyErr_SetString(PyExc_SyntaxError, "Invalid argument");
+        ohcount_sourcefile_list_free(list);
+        return NULL;
+      }
+      val = PyDict_GetItem(args, PyString_FromString("paths"));
       if (val && PyList_Check(val)) {
         int i, length = PyList_Size(val);
         for (i = 0; i < length; i++) {
