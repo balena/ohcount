@@ -132,17 +132,17 @@
     ohcount_sourcefile_set_filenames(self, fnames);
     free(fnames);
   }
-  SourceFile(const char *filepath, PyObject *opt_hash=NULL) {
+  SourceFile(const char *filepath, PyObject *args, PyObject *kwargs) {
     SourceFile *sourcefile = ohcount_sourcefile_new(filepath);
-    if (opt_hash) {
+    if (kwargs) {
       PyObject *val;
-      val = PyDict_GetItem(opt_hash, PyString_FromString("contents"))
+      val = PyDict_GetItem(kwargs, PyString_FromString("contents"))
       if (val && PyString_Check(val))
         ohcount_sourcefile_set_contents(sourcefile, PyString_AsString(val));
-      val = PyDict_GetItem(opt_hash, PyString_FromString("file_location"))
+      val = PyDict_GetItem(kwargs, PyString_FromString("file_location"))
       if (val && PyString_Check(val))
         ohcount_sourcefile_set_diskpath(sourcefile, PyString_AsString(val));
-      val = PyDict_GetItem(opt_hash, PyString_FromString("filenames"))
+      val = PyDict_GetItem(kwargs, PyString_FromString("filenames"))
       if (val && PyString_Check(val))
         SourceFile_set_filenames(sourcefile, val);
     }
@@ -176,11 +176,11 @@
 
 #elif defined(SWIGPYTHON)
 
-  SourceFileList(PyObject *opt_hash=NULL) {
+  SourceFileList(PyObject *args, PyObject *kwargs) {
     SourceFileList *list = ohcount_sourcefile_list_new();
-    if (opt_hash) {
+    if (kwargs) {
       PyObject *val;
-      val = PyDict_GetItem(opt_hash, PyString_FromString("paths"));
+      val = PyDict_GetItem(kwargs, PyString_FromString("paths"));
       if (val && PyList_Check(val)) {
         int i, length = PyList_Size(val);
         for (i = 0; i < length; i++) {
