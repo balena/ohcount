@@ -62,47 +62,58 @@ MACRO(ADD_TARGET_TEST _testname _target _workingdir _expected_result)
 ENDMACRO(ADD_TARGET_TEST _testname _target _workingdir _expected_result)
 
 # Gperf input files:
-FILE(GLOB _hash_header_srcs "${CMAKE_SOURCE_DIR}/src/hash/*.gperf")
-
-UNSET(_hash_header_headers)
+FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/hash)
+FILE(GLOB _hash_header_srcs "src/hash/*.gperf")
 FOREACH(_hsrc ${_hash_header_srcs})
+  GET_FILENAME_COMPONENT(_hsrc ${_hsrc} NAME)
   STRING(REPLACE "s.gperf" "_hash.h" _hh ${_hsrc})
-  LIST(APPEND _hash_header_headers ${_hh})
+  LIST(APPEND _hash_header_headers ${CMAKE_BINARY_DIR}/hash/${_hh})
 ENDFOREACH(_hsrc)
-
 ADD_CUSTOM_COMMAND(
-  OUTPUT ${_hash_header_headers}
-         ${CMAKE_SOURCE_DIR}/src/hash/language_hash.c
+  OUTPUT ${_hash_header_headers} ${CMAKE_BINARY_DIR}/hash/language_hash.c
+  COMMAND cp ${CMAKE_SOURCE_DIR}/src/hash/* ${CMAKE_BINARY_DIR}/hash
   COMMAND ${BASH_EXECUTABLE} ./generate_headers
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src/hash
-  DEPENDS ${_hash_header_srcs}
-          ${CMAKE_SOURCE_DIR}/src/hash/generate_headers
-          ${GPERF_EXECUTABLE}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/hash
+  DEPENDS ${_hash_header_srcs} ${CMAKE_SOURCE_DIR}/src/hash/generate_headers
+)
+ADD_CUSTOM_TARGET(ohcount_gperf_files
+  DEPENDS ${_hash_header_headers} ${CMAKE_BINARY_DIR}/hash/language_hash.c
+  SOURCES ${_hash_header_srcs} ${CMAKE_SOURCE_DIR}/src/hash/generate_headers
+)
+LIST(APPEND _additional_clean_files ${CMAKE_BINARY_DIR}/hash/*)
+SET_SOURCE_FILES_PROPERTIES(
+  "${_hash_header_headers} ${CMAKE_BINARY_DIR}/hash/language_hash.c"
+  PROPERTIES GENERATED TRUE
 )
 
 # Ragel input files:
-FILE(GLOB _parser_srcs "${CMAKE_SOURCE_DIR}/src/parsers/*.rl")
-
-UNSET(_parser_headers)
+FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/parsers)
+FILE(GLOB _parser_srcs "src/parsers/*.rl")
 FOREACH(_parser ${_parser_srcs})
-  GET_FILENAME_COMPONENT(_path ${_parser} PATH)
   GET_FILENAME_COMPONENT(_name ${_parser} NAME_WE)
-  LIST(APPEND _parser_headers ${_path}/${_name}.h)
+  LIST(APPEND _parser_headers ${CMAKE_BINARY_DIR}/parsers/${_name}.h)
 ENDFOREACH(_parser)
-
 ADD_CUSTOM_COMMAND(
   OUTPUT ${_parser_headers}
+  COMMAND cp ${CMAKE_SOURCE_DIR}/src/parsers/* ${CMAKE_BINARY_DIR}/parsers
   COMMAND ${BASH_EXECUTABLE} ./compile
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src/parsers
-  DEPENDS ${_parser_srcs}
-          ${CMAKE_SOURCE_DIR}/src/parsers/compile
-          ${RAGEL_EXECUTABLE}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/parsers
+  DEPENDS ${_parser_srcs} ${CMAKE_SOURCE_DIR}/src/parsers/compile
 )
+ADD_CUSTOM_TARGET(ohcount_ragel_files
+  DEPENDS ${_parser_headers}
+  SOURCES ${_parser_srcs} ${CMAKE_SOURCE_DIR}/src/parsers/compile
+)
+LIST(APPEND _additional_clean_files ${CMAKE_BINARY_DIR}/parsers/*)
+SET_SOURCE_FILES_PROPERTIES(${_parser_headers} PROPERTIES GENERATED TRUE)
 
 # Ohcount static library
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/src
+  ${CMAKE_SOURCE_DIR}/src/parsers
+  ${CMAKE_BINARY_DIR}
+)
 ADD_LIBRARY(libohcount STATIC
-  ${_hash_header_headers}
-  ${_parser_headers}
   src/sourcefile.c
   src/detector.c
   src/licenses.c
@@ -111,8 +122,9 @@ ADD_LIBRARY(libohcount STATIC
   src/log.c
   src/diff.c
   src/parsed_language.c
-  src/hash/language_hash.c
+  ${CMAKE_BINARY_DIR}/hash/language_hash.c
 )
+ADD_DEPENDENCIES(libohcount ohcount_gperf_files ohcount_ragel_files)
 SET_TARGET_PROPERTIES(libohcount PROPERTIES OUTPUT_NAME ohcount)
 TARGET_LINK_LIBRARIES(libohcount pcre)
 
@@ -132,13 +144,11 @@ SET(ENABLE_RUBY TRUE CACHE BOOLEAN "Enable ruby binding")
 SET(ENABLE_PYTHON FALSE CACHE BOOLEAN "Enable python binding")
 
 IF(ENABLE_RUBY OR ENABLE_PYTHON)
-
   # Find SWIG executable
   FIND_PACKAGE(SWIG REQUIRED)
   IF(NOT SWIG_FOUND)
     MESSAGE(SEND_ERROR "You need SWIG to build ohcount bindings")
   ENDIF(NOT SWIG_FOUND)
-
 ENDIF(ENABLE_RUBY OR ENABLE_PYTHON)
 
 # Set up Ruby binding
@@ -153,10 +163,18 @@ IF(ENABLE_RUBY)
   ENDIF(NOT RUBY_FOUND)
 
   FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${RUBY_ARCH})
+  SET(_ruby_files
+    "${CMAKE_SOURCE_DIR}/ruby/ohcount.rb"
+    "${CMAKE_SOURCE_DIR}/ruby/gestalt.rb"
+    "${CMAKE_SOURCE_DIR}/ruby/gestalt"
+  )
+  FILE(COPY ${_ruby_files} DESTINATION ${CMAKE_BINARY_DIR}/ruby)
 
   ADD_CUSTOM_COMMAND(
     OUTPUT ${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c
-    COMMAND ${SWIG_EXECUTABLE} -ruby -o ${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
+    COMMAND ${SWIG_EXECUTABLE} -ruby
+            -o ${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c
+            ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
     DEPENDS ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
   )
 
@@ -168,8 +186,9 @@ IF(ENABLE_RUBY)
     PROPERTIES
       OUTPUT_NAME ohcount
       PREFIX ""
-      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${arch}
+      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${RUBY_ARCH}
   )
+  LIST(APPEND _additional_clean_files "${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c")
 
 ENDIF(ENABLE_RUBY)
 
@@ -185,15 +204,20 @@ IF(ENABLE_PYTHON)
   ENDIF(NOT PYTHONLIBS_FOUND)
 
   FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/python/ohcount)
-  FILE(GLOB _python_files "${CMAKE_SOURCE_DIR}/python/*.py")
+  FILE(GLOB _python_files "python/*.py")
   FILE(COPY ${_python_files} DESTINATION ${CMAKE_BINARY_DIR}/python/ohcount)
 
   ADD_CUSTOM_COMMAND(
     OUTPUT ${CMAKE_BINARY_DIR}/python/ohcount_wrap.c
            ${CMAKE_BINARY_DIR}/python/ohcount/ohcount.py
-    COMMAND ${SWIG_EXECUTABLE} -python -o ${CMAKE_BINARY_DIR}/python/ohcount_wrap.c ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/python/ohcount.py ${CMAKE_BINARY_DIR}/python/ohcount
-    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/python/ohcount.py
+    COMMAND ${SWIG_EXECUTABLE} -python
+            -o ${CMAKE_BINARY_DIR}/python/ohcount_wrap.c
+            ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
+    COMMAND ${CMAKE_COMMAND} -E copy
+            ${CMAKE_BINARY_DIR}/python/ohcount.py
+            ${CMAKE_BINARY_DIR}/python/ohcount
+    COMMAND ${CMAKE_COMMAND} -E remove -f
+            ${CMAKE_BINARY_DIR}/python/ohcount.py
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/python/ohcount
     DEPENDS ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
   )
@@ -208,7 +232,16 @@ IF(ENABLE_PYTHON)
       PREFIX ""
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python/ohcount
   )
+  LIST(APPEND _additional_clean_files
+    "${CMAKE_BINARY_DIR}/python/ohcount_wrap.c"
+    "${CMAKE_BINARY_DIR}/python/ohcount/ohcount.py"
+  )
 
 ENDIF(ENABLE_PYTHON)
+
+# Extra clean files:
+SET_DIRECTORY_PROPERTIES(
+  PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "${_additional_clean_files}"
+)
 
 # Modeline for vim: set tw=79 et ts=2:
