@@ -27,6 +27,40 @@ IF(NOT PCRE_LIBRARY)
   MESSAGE(SEND_ERROR "PCRE library not found, you need it in order to build ohcount")
 ENDIF(NOT PCRE_LIBRARY)
 
+# Test suite for complex tests (i.e. command + parameters + expected result):
+ENABLE_TESTING()
+FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/test)
+MACRO(ADD_COMPLEX_TEST _testname _command _workingdir _expected_result)
+  FILE(WRITE "${CMAKE_BINARY_DIR}/test/${_testname}.cmake"
+"EXECUTE_PROCESS(
+  COMMAND ${_command}
+  WORKING_DIRECTORY ${_workingdir}
+  RESULT_VARIABLE _result
+  OUTPUT_VARIABLE _output
+  ERROR_VARIABLE  _error
+)
+IF(NOT _result EQUAL ${_expected_result})
+  MESSAGE(SEND_ERROR
+\"
+Test name: ${_testname}
+Result:    \${_result}
+Expected:  ${_expected_result}
+Output:
+\${_output}
+Error:
+\${_error}
+\"
+  )
+ENDIF(NOT _result EQUAL ${_expected_result})"
+  )
+  ADD_TEST(${_testname} ${CMAKE_COMMAND} -P "${CMAKE_BINARY_DIR}/test/${_testname}.cmake")
+ENDMACRO(ADD_COMPLEX_TEST _testname _command _workingdir _expected_result)
+
+MACRO(ADD_TARGET_TEST _testname _target _workingdir _expected_result)
+  GET_TARGET_PROPERTY(_executable ${_target} LOCATION)
+  ADD_COMPLEX_TEST("${_testname}" "${_executable}" "${_workingdir}" ${_expected_result})
+ENDMACRO(ADD_TARGET_TEST _testname _target _workingdir _expected_result)
+
 # Gperf input files:
 FILE(GLOB _hash_header_srcs "${CMAKE_SOURCE_DIR}/src/hash/*.gperf")
 
@@ -87,6 +121,13 @@ ADD_EXECUTABLE(ohcount src/ohcount.c)
 ADD_DEPENDENCIES(ohcount libohcount)
 TARGET_LINK_LIBRARIES(ohcount libohcount)
 
+# Unit test
+ADD_EXECUTABLE(ohcount_unittest test/unit/all_tests.c)
+ADD_DEPENDENCIES(ohcount_unittest libohcount)
+TARGET_LINK_LIBRARIES(ohcount_unittest libohcount)
+ADD_TARGET_TEST("UnitTest" ohcount_unittest ${CMAKE_SOURCE_DIR}/test/unit 0)
+
+# Ohcount language bindings
 SET(ENABLE_RUBY TRUE CACHE BOOLEAN "Enable ruby binding")
 SET(ENABLE_PYTHON FALSE CACHE BOOLEAN "Enable python binding")
 
