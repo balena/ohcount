@@ -8,6 +8,8 @@
 
 %include typemaps.i
 
+#if defined(SWIGRUBY)
+
 %typemap(in) (register const char *str, register unsigned int len) {
   Check_Type($input, T_STRING);
   $1 = STR2CSTR($input);
@@ -21,6 +23,30 @@
     rb_ary_push(arr, rb_str_new2($1[i]));
   $result = arr;
 };
+
+#elif defined(SWIGPYTHON)
+
+%typemap(in) (register const char *str, register unsigned int len) {
+  if (!PyString_Check($input)) {
+    PyErr_SetString(PyExc_SyntaxError, "Invalid parameter");
+    return NULL;
+  }
+  $1 = PyString_AsString($input);
+  $2 = PyString_Size($input);
+};
+
+%typemap(out) char ** {
+  int i;
+  PyObject *arr = PyList_New(0);
+  for (i = 0; $1[i] != NULL; i++)
+    PyList_Append(arr, PyString_FromString($1[i]));
+  $result = arr;
+};
+
+
+#else
+#error "You should define specific translation rules for this language."
+#endif
 
 %nodefaultctor SourceFile;
 %immutable;
@@ -59,6 +85,7 @@
   LocDeltaList *_diff(SourceFile *to) {
     return ohcount_sourcefile_diff(self, to);
   }
+#if defined(SWIGRUBY)
   void set_filenames(VALUE filenames) {
     int i, length = RARRAY(filenames)->len;
     char **fnames = calloc(length + 1, sizeof(char *));
@@ -84,12 +111,53 @@
     }
     return sourcefile;
   }
+#elif defined(SWIGRUBY)
+  void set_filenames(PyObject *filenames) {
+    int i, length;
+    char **fnames;
+    if (!PyList_Check(filenames)) {
+      PyErr_SetString(PyExc_SyntaxError, "Invalid parameter, expected a list of strings");
+      return NULL;
+    }
+    length = PyList_Size(filenames);
+    fnames = calloc(length + 1, sizeof(char *));
+    for (i = 0; i < length; i++) {
+      PyObject *s = PyList_GetItem(filenames, i);
+      if (!PyString_Check(s)) {
+        PyErr_SetString(PyExc_SyntaxError, "Invalid parameter, expected a list of strings");
+        return NULL;
+      }
+      fnames[i] = PyString_AsString(s);
+    }
+    ohcount_sourcefile_set_filenames(self, fnames);
+    free(fnames);
+  }
+  SourceFile(const char *filepath, PyObject *opt_hash=NULL) {
+    SourceFile *sourcefile = ohcount_sourcefile_new(filepath);
+    if (opt_hash) {
+      PyObject *val;
+      val = PyDict_GetItem(opt_hash, PyString_FromString("contents"))
+      if (val && PyString_Check(val))
+        ohcount_sourcefile_set_contents(sourcefile, PyString_AsString(val));
+      val = PyDict_GetItem(opt_hash, PyString_FromString("file_location"))
+      if (val && PyString_Check(val))
+        ohcount_sourcefile_set_diskpath(sourcefile, PyString_AsString(val));
+      val = PyDict_GetItem(opt_hash, PyString_FromString("filenames"))
+      if (val && PyString_Check(val))
+        SourceFile_set_filenames(sourcefile, val);
+    }
+    return sourcefile;
+  }
+
+#endif
   ~SourceFile() {
     ohcount_sourcefile_free(self);
   }
 };
 
 %extend SourceFileList {
+#if defined(SWIGRUBY)
+
   static VALUE rb_add_directory(VALUE directory, SourceFileList *list) {
     if (directory && rb_type(directory) == T_STRING)
       ohcount_sourcefile_list_add_directory(list, STR2CSTR(directory));
@@ -105,6 +173,32 @@
     }
     return list;
   }
+
+#elif defined(SWIGPYTHON)
+
+  SourceFileList(PyObject *opt_hash=NULL) {
+    SourceFileList *list = ohcount_sourcefile_list_new();
+    if (opt_hash) {
+      PyObject *val;
+      val = PyDict_GetItem(opt_hash, PyString_FromString("paths"));
+      if (val && PyList_Check(val)) {
+        int i, length = PyList_Size(val);
+        for (i = 0; i < length; i++) {
+          PyObject *s = PyList_GetItem(val, i);
+          if (!PyString_Check(s)) {
+            PyErr_SetString(PyExc_SyntaxError, "Invalid 'paths', expected a list of strings");
+            ohcount_sourcefile_list_free(list);
+            return NULL;
+          }
+          ohcount_sourcefile_list_add_directory(list, PyString_AsString(s));
+        }
+      }
+    }
+    return list;
+  }
+
+#endif
+
   ~SourceFileList() {
     ohcount_sourcefile_list_free(self);
   }

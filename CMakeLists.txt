@@ -46,11 +46,6 @@ ADD_CUSTOM_COMMAND(
           ${GPERF_EXECUTABLE}
 )
 
-SET_SOURCE_FILES_PROPERTIES(${_hash_header_headers}
-  PROPERTIES
-    HEADER_FILE_ONLY TRUE
-)
-
 # Ragel input files:
 FILE(GLOB _parser_srcs "${CMAKE_SOURCE_DIR}/src/parsers/*.rl")
 
@@ -68,11 +63,6 @@ ADD_CUSTOM_COMMAND(
   DEPENDS ${_parser_srcs}
           ${CMAKE_SOURCE_DIR}/src/parsers/compile
           ${RAGEL_EXECUTABLE}
-)
-
-SET_SOURCE_FILES_PROPERTIES(${_parser_headers}
-  PROPERTIES
-    HEADER_FILE_ONLY TRUE
 )
 
 # Ohcount static library
@@ -98,6 +88,19 @@ ADD_DEPENDENCIES(ohcount libohcount)
 TARGET_LINK_LIBRARIES(ohcount libohcount)
 
 SET(ENABLE_RUBY TRUE CACHE BOOLEAN "Enable ruby binding")
+SET(ENABLE_PYTHON FALSE CACHE BOOLEAN "Enable python binding")
+
+IF(ENABLE_RUBY OR ENABLE_PYTHON)
+
+  # Find SWIG executable
+  FIND_PACKAGE(SWIG REQUIRED)
+  IF(NOT SWIG_FOUND)
+    MESSAGE(SEND_ERROR "You need SWIG to build ohcount bindings")
+  ENDIF(NOT SWIG_FOUND)
+
+ENDIF(ENABLE_RUBY OR ENABLE_PYTHON)
+
+# Set up Ruby binding
 IF(ENABLE_RUBY)
 
   MESSAGE(STATUS "Enabled Ruby binding")
@@ -107,12 +110,6 @@ IF(ENABLE_RUBY)
   IF(NOT RUBY_FOUND)
     MESSAGE(SEND_ERROR "You need Ruby to build Ruby binding")
   ENDIF(NOT RUBY_FOUND)
-
-  # Find SWIG executable
-  FIND_PACKAGE(SWIG REQUIRED)
-  IF(NOT SWIG_FOUND)
-    MESSAGE(SEND_ERROR "You need SWIG to build Ruby binding")
-  ENDIF(NOT SWIG_FOUND)
 
   FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${RUBY_ARCH})
 
@@ -134,5 +131,41 @@ IF(ENABLE_RUBY)
   )
 
 ENDIF(ENABLE_RUBY)
+
+# Set up Python binding
+IF(ENABLE_PYTHON)
+
+  MESSAGE(STATUS "Enabled Python binding")
+
+  # Find Python executable
+  FIND_PACKAGE(PythonLibs REQUIRED)
+  IF(NOT PYTHONLIBS_FOUND)
+    MESSAGE(SEND_ERROR "You need Python to build Python binding")
+  ENDIF(NOT PYTHONLIBS_FOUND)
+
+  FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/python/ohcount)
+  FILE(GLOB _python_files "${CMAKE_SOURCE_DIR}/python/*.py")
+  FILE(COPY ${_python_files} DESTINATION ${CMAKE_BINARY_DIR}/python/ohcount)
+
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_BINARY_DIR}/python/ohcount_wrap.c
+           ${CMAKE_BINARY_DIR}/python/ohcount/ohcount.py
+    COMMAND ${SWIG_EXECUTABLE} -python -o ${CMAKE_BINARY_DIR}/python/ohcount_wrap.c ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/python/ohcount
+    DEPENDS ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
+  )
+
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/python ${PYTHON_INCLUDE_DIRS})
+  ADD_LIBRARY(ohcount_python SHARED ${CMAKE_BINARY_DIR}/python/ohcount_wrap.c)
+  ADD_DEPENDENCIES(ohcount_python libohcount)
+  TARGET_LINK_LIBRARIES(ohcount_python ${PYTHON_LIBRARIES} libohcount)
+  SET_TARGET_PROPERTIES(ohcount_python
+    PROPERTIES
+      OUTPUT_NAME ohcount
+      PREFIX ""
+      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python/ohcount
+  )
+
+ENDIF(ENABLE_PYTHON)
 
 # Modeline for vim: set tw=79 et ts=2:
