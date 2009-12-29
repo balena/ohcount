@@ -151,6 +151,8 @@ IF(ENABLE_PYTHON)
     OUTPUT ${CMAKE_BINARY_DIR}/python/ohcount_wrap.c
            ${CMAKE_BINARY_DIR}/python/ohcount/ohcount.py
     COMMAND ${SWIG_EXECUTABLE} -python -o ${CMAKE_BINARY_DIR}/python/ohcount_wrap.c ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/python/ohcount.py ${CMAKE_BINARY_DIR}/python/ohcount
+    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/python/ohcount.py
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/python/ohcount
     DEPENDS ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
   )
@@ -161,7 +163,7 @@ IF(ENABLE_PYTHON)
   TARGET_LINK_LIBRARIES(ohcount_python ${PYTHON_LIBRARIES} libohcount)
   SET_TARGET_PROPERTIES(ohcount_python
     PROPERTIES
-      OUTPUT_NAME ohcount
+      OUTPUT_NAME _ohcount
       PREFIX ""
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python/ohcount
   )
