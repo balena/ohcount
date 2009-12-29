@@ -30,6 +30,8 @@ ENDIF(NOT PCRE_LIBRARY)
 # Test suite for complex tests (i.e. command + parameters + expected result):
 ENABLE_TESTING()
 FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/test)
+FILE(GLOB _test_files DESTINATION "test/*")
+FILE(COPY ${_test_files} DESTINATION ${CMAKE_BINARY_DIR}/test)
 MACRO(ADD_COMPLEX_TEST _testname _command _workingdir _expected_result)
   FILE(WRITE "${CMAKE_BINARY_DIR}/test/${_testname}.cmake"
 "EXECUTE_PROCESS(
@@ -139,7 +141,7 @@ TARGET_LINK_LIBRARIES(ohcount libohcount)
 ADD_EXECUTABLE(ohcount_unittest test/unit/all_tests.c)
 ADD_DEPENDENCIES(ohcount_unittest libohcount)
 TARGET_LINK_LIBRARIES(ohcount_unittest libohcount)
-ADD_TARGET_TEST("UnitTest" ohcount_unittest ${CMAKE_SOURCE_DIR}/test/unit 0)
+ADD_TARGET_TEST("UnitTest" ohcount_unittest ${CMAKE_BINARY_DIR}/test/unit 0)
 
 # Ohcount language bindings
 SET(ENABLE_RUBY TRUE CACHE BOOLEAN "Enable ruby binding")
@@ -165,6 +167,7 @@ IF(ENABLE_RUBY)
   ENDIF(NOT RUBY_FOUND)
 
   FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${RUBY_ARCH})
+  FILE(COPY ${CMAKE_SOURCE_DIR}/ruby/print_arch DESTINATION ${CMAKE_BINARY_DIR}/ruby)
   SET(_ruby_files
     "${CMAKE_SOURCE_DIR}/ruby/ohcount.rb"
     "${CMAKE_SOURCE_DIR}/ruby/gestalt.rb"
@@ -191,6 +194,10 @@ IF(ENABLE_RUBY)
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${RUBY_ARCH}
   )
   LIST(APPEND _additional_clean_files "${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c")
+  ADD_COMPLEX_TEST("RubyTest"
+    "${RUBY_EXECUTABLE} ruby_test.rb"
+    ${CMAKE_BINARY_DIR}/test/unit/ruby 0
+  )
 
 ENDIF(ENABLE_RUBY)
 
