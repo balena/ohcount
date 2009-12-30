@@ -220,22 +220,15 @@ class SourceFileList(_OhcountList):
         return SourceFile(inner.sf)
 
     def analyze_languages(self):
-        result = []
-        list = self._base.analyze_languages()
-        if list is not None:
-            iter = list.head
-            while iter is not None:
-                result.append(Loc(iter.loc))
-                iter = iter.next
-        return result
+        return LocList( self._base.analyze_languages() )
 
     def add_directory(self, path):
-        if not os.path.isdir(xraydir):
+        if not os.path.isdir(path):
             raise SyntaxError('Input path is not a directory: %s' % path)
         self._base.add_directory(path)
 
     def add_file(self, filepath):
-        if not os.path.isfile(xraydir):
+        if not os.path.isfile(filepath):
             raise SyntaxError('Input path is not a file: %s' % filepath)
         self._base.add_file(filepath)
 

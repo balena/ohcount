@@ -141,7 +141,7 @@ TARGET_LINK_LIBRARIES(ohcount libohcount)
 ADD_EXECUTABLE(ohcount_unittest test/unit/all_tests.c)
 ADD_DEPENDENCIES(ohcount_unittest libohcount)
 TARGET_LINK_LIBRARIES(ohcount_unittest libohcount)
-ADD_TARGET_TEST("UnitTest" ohcount_unittest ${CMAKE_BINARY_DIR}/test/unit 0)
+ADD_TARGET_TEST(UnitTest ohcount_unittest ${CMAKE_BINARY_DIR}/test/unit 0)
 
 # Ohcount language bindings
 SET(ENABLE_RUBY TRUE CACHE BOOLEAN "Enable ruby binding")
@@ -194,7 +194,7 @@ IF(ENABLE_RUBY)
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/ruby/${RUBY_ARCH}
   )
   LIST(APPEND _additional_clean_files "${CMAKE_BINARY_DIR}/ruby/ohcount_wrap.c")
-  ADD_COMPLEX_TEST("RubyTest"
+  ADD_COMPLEX_TEST(RubyTest
     "${RUBY_EXECUTABLE} ruby_test.rb"
     ${CMAKE_BINARY_DIR}/test/unit/ruby 0
   )
@@ -208,9 +208,10 @@ IF(ENABLE_PYTHON)
 
   # Find Python executable
   FIND_PACKAGE(PythonLibs REQUIRED)
-  IF(NOT PYTHONLIBS_FOUND)
+  FIND_PROGRAM(PYTHON_EXECUTABLE python)
+  IF(NOT PYTHONLIBS_FOUND OR NOT PYTHON_EXECUTABLE)
     MESSAGE(SEND_ERROR "You need Python to build Python binding")
-  ENDIF(NOT PYTHONLIBS_FOUND)
+  ENDIF(NOT PYTHONLIBS_FOUND OR NOT PYTHON_EXECUTABLE)
 
   FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/python/ohcount)
   FILE(GLOB _python_files "python/*.py")
@@ -244,6 +245,13 @@ IF(ENABLE_PYTHON)
   LIST(APPEND _additional_clean_files
     "${CMAKE_BINARY_DIR}/python/ohcount_wrap.c"
     "${CMAKE_BINARY_DIR}/python/ohcount/ohcount.py"
+  )
+  ADD_TEST(PythonTest ${CMAKE_COMMAND} -E chdir
+    "${CMAKE_BINARY_DIR}/test/unit/python"
+    "${PYTHON_EXECUTABLE}" "python_test.py"
+  )
+  SET_TESTS_PROPERTIES(PythonTest PROPERTIES
+    ENVIRONMENT "PYTHONPATH=../../../python"
   )
 
 ENDIF(ENABLE_PYTHON)
