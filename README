@@ -69,10 +69,35 @@ On Debian/Ubuntu, install with "sudo apt-get instal doxygen".
 
 == Building Ohcount ==
 
-You will need ragel 6.3 or higher, bash, pcre, gcc (version 4.1.2 or greater) and SWIG to build ohcount. Once you have them, go to the top directory of ohcount and type:
+You will need ragel 6.3 or higher, gperf, bash, cmake (version 2.8.0 or greater), pcre and gcc (version 4.1.2 or greater) to build ohcount. If you want to build some of the language bindings (Ruby and Python), you will need SWIG too. Once you have them, go to the top directory of ohcount and type:
 
-	> bash build
-or > ./build
+	> mkdir ../ohcount_build
+	> cd ../ohcount_build
+	> cmake ../ohcount
+	> make
+	> make test
+
+=== Building Ohcount Ruby binding ===
+
+To build the Ruby extension, enable the flag ENABLE_RUBY in cmake:
+
+	> cmake -DENABLE_RUBY=TRUE ../ohcount
+
+=== Building Ohcount Python binding ===
+
+To build the Python extension, enable the flag ENABLE_PYTHON in cmake:
+
+	> cmake -DENABLE_PYTHON=TRUE ../ohcount
+
+==== Building Ohcount Python binding on MinGW/MSYS ====
+
+If you already not done, you will need to create libpythonXX.a from pythonXX.dll of your Python install. For accomplish this, just run:
+
+	> python mingw_setup.py
+
+The command below should come after, on the build directory, to make the new libpythonXX.a in effect:
+
+	> cmake -DPYTHON_LIBRARY=/path/to/python/libs/libpythonXX.a .
 
 == Using Ohcount ==
 
@@ -87,4 +112,5 @@ Read http://labs.ohloh.net/ohcount/wiki/HowToSubmitPatches for information about
 
 DEPENDENCIES
 ============
-SWIG, pcre, ragel, bash
+pcre, ragel, bash, cmake, gperf
+SWIG for Ruby and Python bindings.
