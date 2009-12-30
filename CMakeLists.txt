@@ -208,7 +208,7 @@ IF(ENABLE_PYTHON)
 
   # Find Python executable
   FIND_PACKAGE(PythonLibs REQUIRED)
-  FIND_PROGRAM(PYTHON_EXECUTABLE python)
+  FIND_PACKAGE(PythonInterp REQUIRED)
   IF(NOT PYTHONLIBS_FOUND OR NOT PYTHON_EXECUTABLE)
     MESSAGE(SEND_ERROR "You need Python to build Python binding")
   ENDIF(NOT PYTHONLIBS_FOUND OR NOT PYTHON_EXECUTABLE)
@@ -223,9 +223,6 @@ IF(ENABLE_PYTHON)
     COMMAND ${SWIG_EXECUTABLE} -python
             -o ${CMAKE_BINARY_DIR}/python/ohcount_wrap.c
             ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
-    COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_BINARY_DIR}/python/ohcount.py
-            ${CMAKE_BINARY_DIR}/python/ohcount
     COMMAND ${CMAKE_COMMAND} -E remove -f
             ${CMAKE_BINARY_DIR}/python/ohcount.py
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/python/ohcount
@@ -236,11 +233,27 @@ IF(ENABLE_PYTHON)
   ADD_LIBRARY(ohcount_python SHARED ${CMAKE_BINARY_DIR}/python/ohcount_wrap.c)
   ADD_DEPENDENCIES(ohcount_python libohcount)
   TARGET_LINK_LIBRARIES(ohcount_python ${PYTHON_LIBRARIES} libohcount)
+
+  FILE(WRITE "${CMAKE_BINARY_DIR}/getmodsuffix.py"
+"import imp
+for s in imp.get_suffixes():
+    if s[1] == 'rb' and s[0][0] == '.':
+        break
+print s[0],
+"
+  )
+  EXECUTE_PROCESS(
+    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_BINARY_DIR}/getmodsuffix.py
+    OUTPUT_VARIABLE _modsuffix
+  )
+  STRING(REPLACE "\n" "" _modsuffix ${_modsuffix})
   SET_TARGET_PROPERTIES(ohcount_python
     PROPERTIES
       OUTPUT_NAME _ohcount
       PREFIX ""
+      SUFFIX "${_modsuffix}"
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python/ohcount
+      RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/python/ohcount
   )
   LIST(APPEND _additional_clean_files
     "${CMAKE_BINARY_DIR}/python/ohcount_wrap.c"
