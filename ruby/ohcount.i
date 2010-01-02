@@ -71,10 +71,10 @@
     return ohcount_loc_list_blanks(self);
   }
   int total() {
-    ohcount_loc_list_total(self);
+    return ohcount_loc_list_total(self);
   }
   int filecount() {
-    ohcount_loc_list_filecount(self);
+    return ohcount_loc_list_filecount(self);
   }
 }
 
