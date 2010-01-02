@@ -1,25 +1,81 @@
 #!/usr/bin/env python
 
 from distutils.core import setup, Extension
+from distutils.ccompiler import compiler_class
 from distutils.command.build import build
 from distutils.command.build_ext import build_ext
 import distutils.command.install_data
-import os.path, sys
+import os, sys
+from glob import glob
 
 if not hasattr(sys, 'version_info') or sys.version_info < (2,6,0,'final'):
     raise SystemExit("Ohcount requires Python 2.6 or later.")
 
 class build_ohcount(build):
+    """Ohcount already have a script named 'build', from the original package,
+    so it conflicts with Python default build path. To solve this, setup.py
+    will use the directory 'build-python' instead."""
+
     def initialize_options(self):
         build.initialize_options(self)
         self.build_base = 'build-python'
 
+def newer_than(srclist, dstlist):
+    for left, right in zip(srclist, dstlist):
+        if not os.path.exists(right):
+	    return True
+        left_stat = os.lstat(left)
+	right_stat = os.lstat(right)
+	if left_stat.st_mtime > right_stat.st_mtime:
+	    return True
+    return False
+
 class build_ohcount_ext(build_ext):
+    """This class implements extra steps needed by Ohcount build process."""
+
     def run(self):
-        os.system('cd src/parsers/ && bash ./compile')
-        os.system('cd src/hash/ && bash ./generate_headers')
+        parsers = glob('src/parsers/*.rl')
+	parsers_h = [f.replace('.rl', '.h') for f in parsers]
+	if newer_than(parsers, parsers_h):
+            os.system('cd src/parsers/ && bash ./compile')
+	hash_files = glob('src/hash/*.gperf')
+	hash_srcs = []
+	for f in hash_files:
+	    if not f.endswith('languages.gperf'):
+	        hash_srcs.append(f.replace('s.gperf', '_hash.h'))
+	    else:
+	        hash_srcs.append(f.replace('s.gperf', '_hash.c'))
+	if newer_than(hash_files, hash_srcs):
+            os.system('cd src/hash/ && bash ./generate_headers')
         return build_ext.run(self)
 
+# Overwrite default Mingw32 compiler
+(module_name, class_name, long_description) = compiler_class['mingw32']
+module_name = "distutils." + module_name
+__import__(module_name)
+module = sys.modules[module_name]
+Mingw32CCompiler = vars(module)[class_name]
+
+class Mingw32CCompiler_ohcount(Mingw32CCompiler):
+    """Ohcount CCompiler version for Mingw32. There is a problem linking
+    against msvcrXX for Python 2.6.4: as both DLLs msvcr and msvcr90 are
+    loaded, it seems to happen some unexpected segmentation faults in
+    several function calls."""
+
+    def __init__(self, *args, **kwargs):
+        Mingw32CCompiler.__init__(self, *args, **kwargs)
+	self.dll_libraries=[] # empty link libraries list
+
+def ohcount_new_compiler(plat=None,compiler=None,verbose=0,dry_run=0,force=0):
+    if compiler == 'mingw32':
+        inst = Mingw32CCompiler_ohcount(None, dry_run, force)
+    else:
+        inst = distutils.ccompiler.new_compiler(plat,compiler,verbose,dry_run,force)
+    return inst
+
+distutils.ccompiler.new_compiler = ohcount_new_compiler
+
+# Ohcount python extension
 ext_modules=[
     Extension(
         name='ohcount._ohcount',
@@ -36,7 +92,6 @@ ext_modules=[
             'src/hash/language_hash.c',
         ],
         libraries=['pcre'],
-        swig_opts=['-modern']
     )
 ]
 
