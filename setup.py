@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
+import distutils.ccompiler
 from distutils.core import setup, Extension
-from distutils.ccompiler import compiler_class
 from distutils.command.build import build
 from distutils.command.build_ext import build_ext
-import distutils.command.install_data
+from distutils.command.install_lib import install_lib
 import os, sys
 from glob import glob
 
@@ -14,7 +14,16 @@ if not hasattr(sys, 'version_info') or sys.version_info < (2,6,0,'final'):
 class build_ohcount(build):
     """Ohcount already have a script named 'build', from the original package,
     so it conflicts with Python default build path. To solve this, setup.py
-    will use the directory 'build-python' instead."""
+    will use the directory 'build-python' instead. The original distutils
+    execute 'build_py' before 'build_ext', but we need the wrapper ohcount.py
+    created by SWIG to be installed too, so we need to invert this order.
+    """
+
+    sub_commands = [('build_ext',     build.has_ext_modules),  # changed
+                    ('build_py',      build.has_pure_modules), # changed
+                    ('build_clib',    build.has_c_libraries),
+                    ('build_scripts', build.has_scripts),
+                   ]
 
     def initialize_options(self):
         build.initialize_options(self)
@@ -23,11 +32,11 @@ class build_ohcount(build):
 def newer_than(srclist, dstlist):
     for left, right in zip(srclist, dstlist):
         if not os.path.exists(right):
-	    return True
+            return True
         left_stat = os.lstat(left)
-	right_stat = os.lstat(right)
-	if left_stat.st_mtime > right_stat.st_mtime:
-	    return True
+        right_stat = os.lstat(right)
+        if left_stat.st_mtime > right_stat.st_mtime:
+            return True
     return False
 
 class build_ohcount_ext(build_ext):
@@ -35,22 +44,23 @@ class build_ohcount_ext(build_ext):
 
     def run(self):
         parsers = glob('src/parsers/*.rl')
-	parsers_h = [f.replace('.rl', '.h') for f in parsers]
-	if newer_than(parsers, parsers_h):
+        parsers_h = [f.replace('.rl', '.h') for f in parsers]
+        if newer_than(parsers, parsers_h):
             os.system('cd src/parsers/ && bash ./compile')
-	hash_files = glob('src/hash/*.gperf')
-	hash_srcs = []
-	for f in hash_files:
-	    if not f.endswith('languages.gperf'):
-	        hash_srcs.append(f.replace('s.gperf', '_hash.h'))
-	    else:
-	        hash_srcs.append(f.replace('s.gperf', '_hash.c'))
-	if newer_than(hash_files, hash_srcs):
+        hash_files = glob('src/hash/*.gperf')
+        hash_srcs = []
+        for f in hash_files:
+            if not f.endswith('languages.gperf'):
+                hash_srcs.append(f.replace('s.gperf', '_hash.h'))
+            else:
+                hash_srcs.append(f.replace('s.gperf', '_hash.c'))
+        if newer_than(hash_files, hash_srcs):
             os.system('cd src/hash/ && bash ./generate_headers')
         return build_ext.run(self)
 
 # Overwrite default Mingw32 compiler
-(module_name, class_name, long_description) = compiler_class['mingw32']
+(module_name, class_name, long_description) = \
+        distutils.ccompiler.compiler_class['mingw32']
 module_name = "distutils." + module_name
 __import__(module_name)
 module = sys.modules[module_name]
@@ -64,13 +74,15 @@ class Mingw32CCompiler_ohcount(Mingw32CCompiler):
 
     def __init__(self, *args, **kwargs):
         Mingw32CCompiler.__init__(self, *args, **kwargs)
-	self.dll_libraries=[] # empty link libraries list
+        self.dll_libraries=[] # empty link libraries list
+
+_new_compiler = distutils.ccompiler.new_compiler
 
 def ohcount_new_compiler(plat=None,compiler=None,verbose=0,dry_run=0,force=0):
     if compiler == 'mingw32':
         inst = Mingw32CCompiler_ohcount(None, dry_run, force)
     else:
-        inst = distutils.ccompiler.new_compiler(plat,compiler,verbose,dry_run,force)
+        inst = _new_compiler(plat,compiler,verbose,dry_run,force)
     return inst
 
 distutils.ccompiler.new_compiler = ohcount_new_compiler
@@ -92,6 +104,7 @@ ext_modules=[
             'src/hash/language_hash.c',
         ],
         libraries=['pcre'],
+        swig_opts=['-outdir', './python/'],
     )
 ]
 
@@ -125,5 +138,9 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
     ext_modules=ext_modules,
-    cmdclass={'build': build_ohcount, 'build_ext': build_ohcount_ext},
+    cmdclass={
+        'build': build_ohcount,
+        'build_ext': build_ohcount_ext,
+    },
 )
+
