@@ -222,6 +222,7 @@ IF(ENABLE_PYTHON)
            ${CMAKE_BINARY_DIR}/python/ohcount/ohcount.py
     COMMAND ${SWIG_EXECUTABLE} -python
             -o ${CMAKE_BINARY_DIR}/python/ohcount_wrap.c
+            -outdir ${CMAKE_BINARY_DIR}/python/ohcount
             ${CMAKE_SOURCE_DIR}/ruby/ohcount.i
     COMMAND ${CMAKE_COMMAND} -E remove -f
             ${CMAKE_BINARY_DIR}/python/ohcount.py
