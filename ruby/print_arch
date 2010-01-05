@@ -10,7 +10,10 @@ end
 
 unless ["centos", nil, "ubuntu"].include? distro
 	STDERR.puts "unhandled /etc/issue result: #{distro}"
+	puts arch
+else
+	# either <arch> or <arch>_<distro> if distro is non-null
+	puts [arch, distro].compact.join("_")
 end
 
-# either <arch> or <arch>_<distro> if distro is non-null
-puts [arch, distro].compact.join("_")
+
