@@ -168,10 +168,15 @@ class LocList(_OhcountDict, _OhcountList):
 
 class SourceFile(_OhcountDict):
 
-    def __init__(self, base):
-        _OhcountDict.__init__(self, base,
-            ['filepath','filename','ext','contents','size','language',
-                'licenses','locs'])
+    def __init__(self, base=None, filename=None, **kwargs):
+        attrs = ['filepath','filename','ext','contents','size','language',
+                    'licenses','locs']
+        if base is not None:
+            _OhcountDict.__init__(self, base, attrs)
+        else:
+            _OhcountDict.__init__(self,
+                ohcount.SourceFile(filename, kwargs),
+                attrs)
 
     def _get_licenses(self):
         result = []
@@ -217,7 +222,7 @@ class SourceFileList(_OhcountList):
         _OhcountList.__init__(self, ohcount.SourceFileList(kwargs))
 
     def _get_value(self, inner):
-        return SourceFile(inner.sf)
+        return SourceFile(base=inner.sf)
 
     def analyze_languages(self):
         return LocList( self._base.analyze_languages() )
