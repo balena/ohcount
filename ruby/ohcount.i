@@ -110,14 +110,6 @@
     return ohcount_sourcefile_diff(self, to);
   }
 #if defined(SWIGRUBY)
-  void set_filenames(VALUE filenames) {
-    int i, length = RARRAY(filenames)->len;
-    char **fnames = calloc(length + 1, sizeof(char *));
-    VALUE *iter = RARRAY(filenames)->ptr;
-    for (i = 0; i < length; i++, iter++)
-      fnames[i] = StringValuePtr(*iter);
-    self->filenames = fnames;
-  }
   SourceFile(const char *filepath, VALUE opt_hash=NULL) {
     SourceFile *sourcefile = ohcount_sourcefile_new(filepath);
     if (opt_hash) {
@@ -128,33 +120,10 @@
       val = rb_hash_aref(opt_hash, ID2SYM(rb_intern("file_location")));
       if (val && rb_type(val) == T_STRING)
         ohcount_sourcefile_set_diskpath(sourcefile, STR2CSTR(val));
-      val = rb_hash_aref(opt_hash, ID2SYM(rb_intern("filenames")));
-      if (val && rb_type(val) == T_ARRAY)
-        SourceFile_set_filenames(sourcefile, val);
     }
     return sourcefile;
   }
 #elif defined(SWIGPYTHON)
-  void set_filenames(PyObject *filenames) {
-    int i, length;
-    char **fnames;
-    if (!PyList_Check(filenames)) {
-      PyErr_SetString(PyExc_SyntaxError, "Invalid parameter, expected a list of strings");
-      return;
-    }
-    length = PyList_Size(filenames);
-    fnames = calloc(length + 1, sizeof(char *));
-    for (i = 0; i < length; i++) {
-      PyObject *s = PyList_GetItem(filenames, i);
-      if (!PyString_Check(s)) {
-        PyErr_SetString(PyExc_SyntaxError, "Invalid parameter, expected a list of strings");
-        return;
-      }
-      fnames[i] = PyString_AsString(s);
-    }
-    ohcount_sourcefile_set_filenames(self, fnames);
-    free(fnames);
-  }
   static void py_annotate_callback(const char *language, const char *entity,
                   int start, int end, void *userdata) {
     PyObject *list = (PyObject *) userdata;
@@ -194,9 +163,6 @@
       val = PyDict_GetItem(args, PyString_FromString("file_location"));
       if (val && PyString_Check(val))
         ohcount_sourcefile_set_diskpath(sourcefile, PyString_AsString(val));
-      val = PyDict_GetItem(args, PyString_FromString("filenames"));
-      if (val && PyString_Check(val))
-        SourceFile_set_filenames(sourcefile, val);
     }
     return sourcefile;
   }
