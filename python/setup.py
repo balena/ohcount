@@ -104,7 +104,7 @@ ext_modules=[
             'src/hash/language_hash.c',
         ],
         libraries=['pcre'],
-        swig_opts=['-outdir', './python/'],
+        swig_opts=['-outdir', './python/ohcount/'],
     )
 ]
 
@@ -127,7 +127,7 @@ setup(
     url = 'http://www.ohloh.net/p/ohcount',
     download_url = 'http://sourceforge.net/projects/ohcount/files/',
     packages = ['ohcount'],
-    package_dir = {'ohcount': 'python'},
+    package_dir = {'ohcount': 'python/ohcount'},
     classifiers = [
         'Development Status :: 5 - Production/Stable',
         'License :: OSI Approved :: GNU General Public License (GPL)'
