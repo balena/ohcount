@@ -30,40 +30,8 @@ const char *ohcount_detect_language(SourceFile *sourcefile) {
   char *p, *pe;
   int length;
 
-  // Attempt to detect based on file extension.
-  length = strlen(sourcefile->ext);
-  struct ExtensionMap *re = ohcount_hash_language_from_ext(sourcefile->ext,
-                                                           length);
-  if (re) language = re->value;
-  if (language == NULL) {
-    // Try the lower-case version of this extension.
-    char lowerext[length + 1];
-    strncpy(lowerext, sourcefile->ext, length);
-    lowerext[length] = '\0';
-    for (p = lowerext; p < lowerext + length; p++) *p = tolower(*p);
-    struct ExtensionMap *re = ohcount_hash_language_from_ext(lowerext, length);
-    if (re) return re->value;
-	}
-  if (language) {
-    if (ISAMBIGUOUS(language)) {
-      // Call the appropriate function for disambiguation.
-      length = strlen(DISAMBIGUATEWHAT(language));
-      struct DisambiguateFuncsMap *rd =
-        ohcount_hash_disambiguate_func_from_id(DISAMBIGUATEWHAT(language),
-                                               length);
-      if (rd) return rd->value(sourcefile);
-    } else return ISBINARY(language) ? NULL : language;
-  }
-
-  // Attempt to detect based on filename.
-  length = strlen(sourcefile->filename);
-  struct FilenameMap *rf =
-    ohcount_hash_language_from_filename(sourcefile->filename, length);
-  if (rf) return rf->value;
-
-  char line[81] = { '\0' }, buf[81];
-
   // Attempt to detect using Emacs mode line (/^-\*-\s*mode[\s:]*\w/i).
+  char line[81] = { '\0' }, buf[81];
   p = ohcount_sourcefile_get_contents(sourcefile);
   pe = p;
   char *eof = p + ohcount_sourcefile_get_contents_size(sourcefile);
@@ -79,87 +47,138 @@ const char *ohcount_detect_language(SourceFile *sourcefile) {
       p = pe;
     } else break;
   }
-  char *eol = line + strlen(line);
-  for (p = line; p < eol; p++) *p = tolower(*p);
   p = strstr(line, "-*-");
   if (p) {
     p += 3;
     while (*p == ' ' || *p == '\t') p++;
-    if (strncmp(p, "mode", 4) == 0) {
+    // detect "mode" (any capitalization)
+    if (strncasecmp(p, "mode", 4) == 0) {
       p += 4;
       while (*p == ' ' || *p == '\t' || *p == ':') p++;
     }
     pe = p;
-    while (isalnum(*pe)) pe++;
+    while (!isspace(*pe) && *pe != ';' && pe != strstr(pe, "-*-")) pe++;
     length = pe - p;
     strncpy(buf, p, length);
     buf[length] = '\0';
+    // First try it with the language name.
     struct LanguageMap *rl = ohcount_hash_language_from_name(buf, length);
-    if (rl) return rl->name;
+    if (rl) language = rl->name;
+    if(!language) {
+      // Then try it with the extension table.
+      struct ExtensionMap *re = ohcount_hash_language_from_ext(buf, length);
+      if (re) language = re->value;
+    }
+    if (!language) {
+      // Try the lower-case version of this modeline.
+      for (pe = buf; pe < buf+length; pe++) *pe = tolower(*pe);
+      // First try it with the language name.
+      rl = ohcount_hash_language_from_name(buf, length);
+      if (rl) language = rl->name;
+    }
+    if (!language) {
+      // Then try it with the extension table.
+      struct ExtensionMap *re = ohcount_hash_language_from_ext(buf, length);
+      if (re) language = re->value;
+    }
+  }
+
+  // Attempt to detect based on file extension.
+  if(!language) {
+      length = strlen(sourcefile->ext);
+      struct ExtensionMap *re = ohcount_hash_language_from_ext(sourcefile->ext,
+                                                               length);
+      if (re) language = re->value;
+    if (!language) {
+      // Try the lower-case version of this extension.
+      char lowerext[length + 1];
+      strncpy(lowerext, sourcefile->ext, length);
+      lowerext[length] = '\0';
+      for (p = lowerext; p < lowerext + length; p++) *p = tolower(*p);
+      struct ExtensionMap *re = ohcount_hash_language_from_ext(lowerext, length);
+      if (re) language = re->value;
+    }
+  }
+
+  // Attempt to detect based on filename.
+  if(!language) {
+    length = strlen(sourcefile->filename);
+    struct FilenameMap *rf =
+      ohcount_hash_language_from_filename(sourcefile->filename, length);
+    if (rf) language = rf->value;
   }
 
   // Attempt to detect based on Unix 'file' command.
-  int tmpfile = 0;
-  char *path = sourcefile->filepath;
-  if (sourcefile->diskpath)
-    path = sourcefile->diskpath;
-  if (access(path, F_OK) != 0) { // create temporary file
-    path = malloc(21);
-    strncpy(path, "/tmp/ohcount_XXXXXXX", 20);
-    *(path + 21) = '\0';
-    int fd = mkstemp(path);
-    char *contents = ohcount_sourcefile_get_contents(sourcefile);
-		log_it("contents:");
-		log_it(contents);
-		length = contents ? strlen(contents) : 0;
-    write(fd, contents, length);
-    close(fd);
-    tmpfile = 1;
-  }
-  char command[strlen(path) + 11];
-  sprintf(command, "file -b '%s'", path);
-  FILE *f = popen(command, "r");
-  if (f) {
-    fgets(line, sizeof(line), f);
-    char *eol = line + strlen(line);
-    for (p = line; p < eol; p++) *p = tolower(*p);
-    p = strstr(line, "script text");
-    if (p && p == line) { // /^script text(?: executable)? for \w/
-      p = strstr(line, "for ");
-      if (p) {
-        p += 4;
-        pe = p;
-        while (isalnum(*pe)) pe++;
+  if(!language) {
+    int tmpfile = 0;
+    char *path = sourcefile->filepath;
+    if (sourcefile->diskpath)
+      path = sourcefile->diskpath;
+    if (access(path, F_OK) != 0) { // create temporary file
+      path = malloc(21);
+      strncpy(path, "/tmp/ohcount_XXXXXXX", 20);
+      *(path + 21) = '\0';
+      int fd = mkstemp(path);
+      char *contents = ohcount_sourcefile_get_contents(sourcefile);
+      log_it("contents:");
+      log_it(contents);
+      length = contents ? strlen(contents) : 0;
+      write(fd, contents, length);
+      close(fd);
+      tmpfile = 1;
+    }
+    char command[strlen(path) + 11];
+    sprintf(command, "file -b '%s'", path);
+    FILE *f = popen(command, "r");
+    if (f) {
+      fgets(line, sizeof(line), f);
+      char *eol = line + strlen(line);
+      for (p = line; p < eol; p++) *p = tolower(*p);
+      p = strstr(line, "script text");
+      if (p && p == line) { // /^script text(?: executable)? for \w/
+        p = strstr(line, "for ");
+        if (p) {
+          p += 4;
+          pe = p;
+          while (isalnum(*pe)) pe++;
+          length = pe - p;
+          strncpy(buf, p, length);
+          buf[length] = '\0';
+          struct LanguageMap *rl = ohcount_hash_language_from_name(buf, length);
+          if (rl) language = rl->name;
+        }
+      } else if (p) { // /(\w+)(?: -\w+)* script text/
+        do {
+          p--;
+          pe = p;
+          while (*p == ' ') p--;
+          while (p != line && isalnum(*(p - 1))) p--;
+          if (p != line && *(p - 1) == '-') p--;
+        } while (*p == '-'); // Skip over any switches.
         length = pe - p;
         strncpy(buf, p, length);
         buf[length] = '\0';
         struct LanguageMap *rl = ohcount_hash_language_from_name(buf, length);
         if (rl) language = rl->name;
+      } else if (strstr(line, "xml")) language = LANG_XML;
+      pclose(f);
+      if (tmpfile) {
+        remove(path);
+        free(path);
       }
-    } else if (p) { // /(\w+)(?: -\w+)* script text/
-      do {
-        p--;
-        pe = p;
-        while (*p == ' ') p--;
-        while (p != line && isalnum(*(p - 1))) p--;
-        if (p != line && *(p - 1) == '-') p--;
-      } while (*p == '-'); // Skip over any switches.
-      length = pe - p;
-      strncpy(buf, p, length);
-      buf[length] = '\0';
-      struct LanguageMap *rl = ohcount_hash_language_from_name(buf, length);
-      if (rl) language = rl->name;
-    } else if (strstr(line, "xml")) language = LANG_XML;
-    pclose(f);
-    if (tmpfile) {
-      remove(path);
-      free(path);
     }
-    if (language)
-      return language;
   }
-
-  return NULL;
+  if (language) {
+    if (ISAMBIGUOUS(language)) {
+      // Call the appropriate function for disambiguation.
+      length = strlen(DISAMBIGUATEWHAT(language));
+      struct DisambiguateFuncsMap *rd =
+        ohcount_hash_disambiguate_func_from_id(DISAMBIGUATEWHAT(language),
+                                               length);
+      if (rd) language = rd->value(sourcefile);
+    } else language = ISBINARY(language) ? NULL : language;
+  }
+  return language;
 }
 
 const char *disambiguate_aspx(SourceFile *sourcefile) {
@@ -261,7 +280,7 @@ const char *disambiguate_basic(SourceFile *sourcefile) {
   }
 
   // Attempt to detect from associated VB files in file context.
-  char **filenames = ohcount_sourcefile_get_filenames(sourcefile);
+  char **filenames = sourcefile->filenames;
   if (filenames) {
     int i;
     for (i = 0; filenames[i] != NULL; i++) {
@@ -333,7 +352,7 @@ const char *disambiguate_fortran(SourceFile *sourcefile) {
 }
 
 const char *disambiguate_h(SourceFile *sourcefile) {
-  char *p, *pe;
+  char *p, *pe, *bof;
   int length;
 
   // If the directory contains a matching *.m file, likely Objective C.
@@ -343,7 +362,7 @@ const char *disambiguate_h(SourceFile *sourcefile) {
     strncpy(path, sourcefile->filename, length);
     path[length] = '\0';
     *(path + length - 1) = 'm';
-    char **filenames = ohcount_sourcefile_get_filenames(sourcefile);
+    char **filenames = sourcefile->filenames;
     if (filenames) {
       int i;
       for (i = 0; filenames[i] != NULL; i++)
@@ -354,7 +373,8 @@ const char *disambiguate_h(SourceFile *sourcefile) {
 
   // Attempt to detect based on file contents.
   char line[81], buf[81];
-  p = ohcount_sourcefile_get_contents(sourcefile);
+  bof = ohcount_sourcefile_get_contents(sourcefile);
+  p = bof;
   pe = p;
   char *eof = p + ohcount_sourcefile_get_contents_size(sourcefile);
   while (pe < eof) {
@@ -401,7 +421,7 @@ const char *disambiguate_h(SourceFile *sourcefile) {
     // Look for C++ keywords.
     p = line;
     while (p < eol) {
-      if (islower(*p) && p != line && !isalnum(*(p - 1)) && *(p - 1) != '_') {
+      if (islower(*p) && p != bof && !isalnum(*(p - 1)) && *(p - 1) != '_') {
         pe = p;
         while (islower(*pe)) pe++;
         if (!isalnum(*pe) && *pe != '_') {
@@ -451,8 +471,7 @@ const char *disambiguate_in(SourceFile *sourcefile) {
     // 'file -b' on the file.
     ohcount_sourcefile_set_diskpath(undecorated, sourcefile->filepath);
     ohcount_sourcefile_set_contents(undecorated, p);
-    char **filenames = ohcount_sourcefile_get_filenames(sourcefile);
-    ohcount_sourcefile_set_filenames(undecorated, filenames);
+		undecorated->filenames = sourcefile->filenames;
     language = ohcount_sourcefile_get_language(undecorated);
     ohcount_sourcefile_free(undecorated);
   }
@@ -485,7 +504,7 @@ const char *disambiguate_m(SourceFile *sourcefile) {
   int octave_syntax_detected = 0;
 
   int i, has_h_headers = 0, has_c_files = 0;
-  char **filenames = ohcount_sourcefile_get_filenames(sourcefile);
+  char **filenames = sourcefile->filenames;
   if (filenames) {
     for (i = 0; filenames[i] != NULL; i++) {
       p = filenames[i];

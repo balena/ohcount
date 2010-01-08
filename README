@@ -7,10 +7,10 @@ ON BUILDING AND REFERING TO THE DOXYGEN DOCS.
 Ohloh/SourceForge's source code line counter.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License Version 3 as
+it under the terms of the GNU General Public License Version 2 as
 published by the Free Software Foundation.
 
-Ohcount is licensed under the GNU General Public License Version 3.
+Ohcount is specifically licensed under GPL v2.0, and no later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -109,8 +109,12 @@ Once you've building ohcount, the executable program will be at bin/ohcount. The
 Particularly, for instructions on adding a new language, follow the instructions at doc/html/detector_doc.html
 Read http://labs.ohloh.net/ohcount/wiki/HowToSubmitPatches for information about having your patch accepted.
 
+== Building language wrappers to use ohcount from Ruby or Python == 
+
+To build the ruby wrapper, run "bash build ruby".
+To build the python wrapper, run "python python/setup.py build; python python/setup.py install". The python wrapper is new and has only been tested on Gentoo and CentOS. Feedback on it is particularly welcome.
+
 
 DEPENDENCIES
 ============
-pcre, ragel, bash, cmake, gperf
-SWIG for Ruby and Python bindings.
+SWIG, pcre, ragel, gperf, bash
