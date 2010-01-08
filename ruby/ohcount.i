@@ -152,7 +152,7 @@
       }
       fnames[i] = PyString_AsString(s);
     }
-    ohcount_sourcefile_set_filenames(self, fnames);
+    self->filenames = fnames;
     free(fnames);
   }
   static void py_annotate_callback(const char *language, const char *entity,
