@@ -64,5 +64,26 @@ class TestSourceFileList(unittest.TestCase):
     def testAddFile(self):
         self.sf_list.add_file('../../src_licenses/academic_t1.c') # must not raise
 
+class TestSourceFile(unittest.TestCase):
+
+    def testItself(self):
+        sf = ohcount.SourceFile(filename='../../detect_files/bash_script')
+        self.assertTrue(sf.size != 0)
+        self.assertTrue(sf.ext == '')
+        self.assertTrue(sf.filename == 'bash_script')
+        self.assertTrue(sf.language == 'shell')
+
+    def testContents(self):
+        fd = open('../../detect_files/bash_script', 'rb')
+        contents = fd.read()
+        sf = ohcount.SourceFile(
+            filename='../../detect_files/bash_script',
+            contents=contents
+        )
+        self.assertTrue(sf.size != 0)
+        self.assertTrue(sf.ext == '')
+        self.assertTrue(sf.filename == 'bash_script')
+        self.assertTrue(sf.language == 'shell')
+
 if __name__ == '__main__':
     unittest.main()
