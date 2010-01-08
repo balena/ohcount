@@ -222,11 +222,7 @@ class SourceFileList(_OhcountList):
         _OhcountList.__init__(self, ohcount.SourceFileList(kwargs))
 
     def _get_value(self, inner):
-<<<<<<< HEAD
         return SourceFile(base=inner.sf)
-=======
-        return SourceFile(inner.sf)
->>>>>>> b75d22586ff5bf600b02485b2e3f95b3684c5e7d
 
     def analyze_languages(self):
         return LocList( self._base.analyze_languages() )
