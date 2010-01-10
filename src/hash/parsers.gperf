@@ -15,6 +15,7 @@
 #include "../parsers/clearsilver.h"
 #include "../parsers/clearsilverhtml.h"
 #include "../parsers/cmake.h"
+#include "../parsers/corba_idl.h"
 #include "../parsers/cs_aspx.h"
 #include "../parsers/css.h"
 #include "../parsers/d.h"
@@ -97,6 +98,7 @@ cmake, parse_cmake
 classic_basic, parse_classic_basic
 clearsilver, parse_clearsilver
 clearsilver_template, parse_cshtml
+corba_idl, parse_corba_idl
 cpp, parse_cpp
 cs_aspx, parse_cs_aspx
 csharp, parse_csharp

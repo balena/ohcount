@@ -19,6 +19,7 @@ classic_basic, LANG_CLASSIC_BASIC, "Classic Basic", 0
 clearsilver, LANG_CLEARSILVER, "ClearSilver", 0
 clearsilver_template, LANG_CLEARSILVER_TEMPLATE, "ClearSilver", 0
 cmake, LANG_CMAKE, "Cmake script", 2
+corba_idl, LANG_CORBA_IDL, "Corba IDL", 0
 cpp, LANG_CPP, "C++", 0
 cs_aspx, LANG_CS_ASPX, "", 0
 csharp, LANG_CSHARP, "C#", 0

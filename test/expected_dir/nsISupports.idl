@@ -1,0 +1,75 @@
+corba_idl	lcomment	/* -*- Mode: IDL; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+corba_idl	lcomment	/* ***** BEGIN LICENSE BLOCK *****
+corba_idl	lcomment	 * Version: NPL 1.1/GPL 2.0/LGPL 2.1
+corba_idl	lcomment	 *
+corba_idl	lcomment	 * The contents of this file are subject to the Netscape Public License
+corba_idl	lcomment	 * Version 1.1 (the "License"); you may not use this file except in
+corba_idl	lcomment	 * compliance with the License. You may obtain a copy of the License at
+corba_idl	lcomment	 * http://www.mozilla.org/NPL/
+corba_idl	lcomment	 *
+corba_idl	lcomment	 * Software distributed under the License is distributed on an "AS IS" basis,
+corba_idl	lcomment	 * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+corba_idl	lcomment	 * for the specific language governing rights and limitations under the
+corba_idl	lcomment	 * License.
+corba_idl	lcomment	 *
+corba_idl	lcomment	 * The Original Code is mozilla.org code.
+corba_idl	lcomment	 *
+corba_idl	lcomment	 * The Initial Developer of the Original Code is
+corba_idl	lcomment	 * Netscape Communications Corporation.
+corba_idl	lcomment	 * Portions created by the Initial Developer are Copyright (C) 1998
+corba_idl	lcomment	 * the Initial Developer. All Rights Reserved.
+corba_idl	lcomment	 *
+corba_idl	lcomment	 * Contributor(s):
+corba_idl	lcomment	 *
+corba_idl	lcomment	 * Alternatively, the contents of this file may be used under the terms of
+corba_idl	lcomment	 * either the GNU General Public License Version 2 or later (the "GPL"), or
+corba_idl	lcomment	 * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+corba_idl	lcomment	 * in which case the provisions of the GPL or the LGPL are applicable instead
+corba_idl	lcomment	 * of those above. If you wish to allow use of your version of this file only
+corba_idl	lcomment	 * under the terms of either the GPL or the LGPL, and not to allow others to
+corba_idl	lcomment	 * use your version of this file under the terms of the NPL, indicate your
+corba_idl	lcomment	 * decision by deleting the provisions above and replace them with the notice
+corba_idl	lcomment	 * and other provisions required by the GPL or the LGPL. If you do not delete
+corba_idl	lcomment	 * the provisions above, a recipient may use your version of this file under
+corba_idl	lcomment	 * the terms of any one of the NPL, the GPL or the LGPL.
+corba_idl	lcomment	 *
+corba_idl	lcomment	 * ***** END LICENSE BLOCK ***** */
+corba_idl	lblank	
+corba_idl	lcomment	/* In order to get both the right typelib and the right header we force
+corba_idl	lcomment	*  the 'real' output from xpidl to be commented out in the generated header
+corba_idl	lcomment	*  and includes a copy of the original nsISupports.h. This is all just to deal
+corba_idl	lcomment	*  with the Mac specific ": public __comobject" thing.
+corba_idl	lcomment	*/
+corba_idl	lblank	
+corba_idl	lcode	#include "nsrootidl.idl"
+corba_idl	lblank	
+corba_idl	lcode	%{C++
+corba_idl	lcomment	/*
+corba_idl	lcomment	 * Start commenting out the C++ versions of the below in the output header
+corba_idl	lcomment	 */
+corba_idl	lcode	#if 0
+corba_idl	lcode	%}
+corba_idl	lblank	
+corba_idl	lcode	[scriptable, uuid(00000000-0000-0000-c000-000000000046)]
+corba_idl	lcode	interface nsISupports {
+corba_idl	lcode	  void QueryInterface(in nsIIDRef uuid,
+corba_idl	lcode	                      [iid_is(uuid),retval] out nsQIResult result);
+corba_idl	lcode	  [noscript, notxpcom] nsrefcnt AddRef();
+corba_idl	lcode	  [noscript, notxpcom] nsrefcnt Release();
+corba_idl	lcode	};
+corba_idl	lblank	
+corba_idl	lcode	%{C++
+corba_idl	lcomment	/*
+corba_idl	lcomment	 * End commenting out the C++ versions of the above in the output header
+corba_idl	lcomment	 */
+corba_idl	lcode	#endif
+corba_idl	lcode	%}
+corba_idl	lblank	
+corba_idl	lblank	
+corba_idl	lcode	%{C++
+corba_idl	lcode	#include "nsISupportsBase.h"
+corba_idl	lblank	
+corba_idl	lcode	#ifndef MOZILLA_STRICT_API
+corba_idl	lcode	#include "nsISupportsUtils.h"
+corba_idl	lcode	#endif
+corba_idl	lcode	%}

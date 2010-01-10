@@ -79,6 +79,7 @@ html, LANG_HTML
 hx, LANG_HAXE
 hxx, LANG_CPP
 icns, BINARY
+idl, LANG_CORBA_IDL
 in, DISAMBIGUATE("in")
 inc, DISAMBIGUATE("inc")
 j, LANG_OBJECTIVE_J
