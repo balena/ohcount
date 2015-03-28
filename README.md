@@ -1,4 +1,4 @@
-== Ohcount
+# Ohcount
 
 NOTE: THE PRIMARY DOCUMENTATION FOR OHCOUNT IS EXTRACTED FROM SOURCE CODE
 BY DOXYGEN. FOR THE MOST UP-TO-DATE DOCS, PLEASE SEE BELOW FOR INFO
@@ -20,7 +20,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-== Overview
+# Overview
 
 Ohcount is a library for counting lines of source code.
 It was originally developed at Ohloh, and is used to generate
@@ -41,7 +41,7 @@ individual source file.
 Ohcount includes a Ruby binding which allows you to directly access its
 language detection features from a Ruby application.
 
-== System Requirements
+# System Requirements
 
 Ohcount is supported on Mac OS X 10.4 and 10.5 and Ubuntu 8.04 LTS. Other Linux
 environments should also work, but your mileage may vary.
@@ -51,13 +51,13 @@ Ohcount does not support Windows.
 Ohcount targets Ruby 1.8.6. The build script requires a bash shell. You
 also need a C compiler to build the native extensions.
 
-== Source Code ==
+# Source Code
 
 Ohcount source code is available as a Git repository:
 
   git clone git://github.com/andyverprauskus/ohcount.git
 
-== Doc files ==
+# Doc files
 
 To build the more extensive Doxygen docs, do
 	> cd doc
@@ -67,7 +67,7 @@ After building the docs, view them with a browser by opening doc/html/index.html
 On a mac, you can install Doxygen with "sudo port install Doxygen".
 On Debian/Ubuntu, install with "sudo apt-get instal doxygen".
 
-== Building Ohcount ==
+# Building Ohcount
 
 You will need ragel 6.3 or higher, gperf, bash, cmake (version 2.8.0 or greater), pcre and gcc (version 4.1.2 or greater) to build ohcount. If you want to build some of the language bindings (Ruby and Python), you will need SWIG too. Once you have them, go to the top directory of ohcount and type:
 
@@ -77,19 +77,19 @@ You will need ragel 6.3 or higher, gperf, bash, cmake (version 2.8.0 or greater)
 	> make
 	> make test
 
-=== Building Ohcount Ruby binding ===
+## Building Ohcount Ruby binding
 
 To build the Ruby extension, enable the flag ENABLE_RUBY in cmake:
 
 	> cmake -DENABLE_RUBY=TRUE ../ohcount
 
-=== Building Ohcount Python binding ===
+## Building Ohcount Python binding
 
 To build the Python extension, enable the flag ENABLE_PYTHON in cmake:
 
 	> cmake -DENABLE_PYTHON=TRUE ../ohcount
 
-==== Building Ohcount Python binding on MinGW/MSYS ====
+### Building Ohcount Python binding on MinGW/MSYS
 
 If you already not done, you will need to create libpythonXX.a from pythonXX.dll of your Python install. For accomplish this, just run:
 
@@ -99,17 +99,17 @@ The command below should come after, on the build directory, to make the new lib
 
 	> cmake -DPYTHON_LIBRARY=/path/to/python/libs/libpythonXX.a .
 
-== Using Ohcount ==
+# Using Ohcount
 
 Once you've building ohcount, the executable program will be at bin/ohcount. The most basic use is to count lines of code in a directory tree, run:
 	"ohcount" to count the current directory and source code in any child directories
 
-== For additional docs, including how to add a new language, see the Doxygen docs ==
+**For additional docs, including how to add a new language, see the Doxygen docs**
 
 Particularly, for instructions on adding a new language, follow the instructions at doc/html/detector_doc.html
 Read http://labs.ohloh.net/ohcount/wiki/HowToSubmitPatches for information about having your patch accepted.
 
-== Building language wrappers to use ohcount from Ruby or Python == 
+# Building language wrappers to use ohcount from Ruby or Python
 
 To build the ruby wrapper, run "bash build ruby".
 
