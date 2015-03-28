@@ -55,7 +55,7 @@ also need a C compiler to build the native extensions.
 
 Ohcount source code is available as a Git repository:
 
-  git clone git://github.com/andyverprauskus/ohcount.git
+    git clone git://github.com/andyverprauskus/ohcount.git
 
 # Doc files
 
